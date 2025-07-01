@@ -75,7 +75,7 @@ def main():
         day_kanshi, index = get_day_kanshi_from_table(birth_date)
 
         st.markdown(f"### 年干支（立春基準）: {year_kanshi}")
-        st.markdown(f"### 天中殺用数値： {day_kanshi}（インデックス: {index}）")
+        st.markdown(f"### 日干支＆天中殺用数値： {day_kanshi}（インデックス: {index}）")
 
         if index is None:
             st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
