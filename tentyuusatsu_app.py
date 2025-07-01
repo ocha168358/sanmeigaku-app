@@ -57,7 +57,7 @@ def get_tenchusatsu_from_day_index(index):
     return "不明"
 
 def main():
-    st.title("天中殺診断アプリ（修正版）")
+    st.title("天中殺診断アプリ【簡易版】")
 
     birth_date = st.date_input(
         "生年月日を入力してください（範囲：1900年～2033年）",
