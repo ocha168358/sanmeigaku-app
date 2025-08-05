@@ -2,6 +2,15 @@ import datetime
 
 # 立春データ（1925〜2033年）
 risshun_dict = {
+    1900: datetime.date(1900, 2, 4), 1901: datetime.date(1901, 2, 4), 1902: datetime.date(1902, 2, 5),
+    1903: datetime.date(1903, 2, 5), 1904: datetime.date(1904, 2, 5), 1905: datetime.date(1905, 2, 4),
+    1906: datetime.date(1906, 2, 5), 1907: datetime.date(1907, 2, 5), 1908: datetime.date(1908, 2, 5),
+    1909: datetime.date(1909, 2, 4), 1910: datetime.date(1910, 2, 5), 1911: datetime.date(1911, 2, 5),
+    1912: datetime.date(1912, 2, 5), 1913: datetime.date(1913, 2, 4), 1914: datetime.date(1914, 2, 5),
+    1915: datetime.date(1915, 2, 5), 1916: datetime.date(1916, 2, 5), 1917: datetime.date(1917, 2, 4),
+    1918: datetime.date(1918, 2, 4), 1919: datetime.date(1919, 2, 5), 1920: datetime.date(1920, 2, 5),
+    1921: datetime.date(1921, 2, 4), 1922: datetime.date(1922, 2, 5), 1923: datetime.date(1923, 2, 5),
+    1924: datetime.date(1924, 2, 5),
     1925: datetime.date(1925, 2, 4), 1926: datetime.date(1926, 2, 5), 1927: datetime.date(1927, 2, 4),
     1928: datetime.date(1928, 2, 5), 1929: datetime.date(1929, 2, 4), 1930: datetime.date(1930, 2, 4),
     1931: datetime.date(1931, 2, 4), 1932: datetime.date(1932, 2, 5), 1933: datetime.date(1933, 2, 4),
