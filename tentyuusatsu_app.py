@@ -3,7 +3,7 @@ from datetime import datetime
 from risshun_data import risshun_dict
 from day_kanshi_dict import kanshi_index_table
 from tenchusatsu_messages import tentyuusatsu_messages
-from hayami import get_year_kanshi_from_risshun, get_month_kanshi
+from hayami import get_year_kanshi_from_risshun #, get_month_kanshi
 from kanshi_calc import get_month_kanshi_name
 from month_kanshi_index_dict import month_kanshi_index_dict  # 追加
 from kanshi_calc import get_kanshi_name
