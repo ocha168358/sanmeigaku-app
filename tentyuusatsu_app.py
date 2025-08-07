@@ -5,7 +5,8 @@ from day_kanshi_dict import kanshi_index_table
 from tenchusatsu_messages import tentyuusatsu_messages
 from hayami import get_year_kanshi_from_risshun, get_month_kanshi
 from kanshi_calc import get_month_kanshi_name
-from month_kanshi_dict import month_kanshi_index_table  # 追加
+from month_kanshi_index_dict import month_kanshi_index_dict  # 追加
+from kanshi_calc import get_kanshi_name
 
 # 1番目を空欄にして、干支の「1〜60番」と index を合わせる
 kanshi_list = [
@@ -87,7 +88,7 @@ def main():
 
     if st.button("診断する"):
         year_kanshi = get_year_kanshi_from_risshun(birth_date)
-        month_kanshi = get_month_kanshi_name(birth_date)
+        month_kanshi = get_kanshi_name(month_kanshi_index_dict[(birth_date.year, birth_date.month)])
         day_kanshi, index = get_day_kanshi_from_table(birth_date)
 
         st.markdown(f"### 年干支（立春基準）: {year_kanshi}")

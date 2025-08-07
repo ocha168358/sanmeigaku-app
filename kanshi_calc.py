@@ -20,7 +20,9 @@ from datetime import date
 from risshun_data import risshun_dict
 from hayami import kanshi_data
 from .kanshi_index_table import kanshi_index_table
-from month_kanshi_dict import month_kanshi_index_table  # 追加
+from month_kanshi_index_dict import month_kanshi_index_dict  # 追加
+
+month_kanshi = get_kanshi_name(month_kanshi_index_dict.get((birth_date.year, birth_date.month)))
 
 # day_kanshi_dict が存在する場合、各年・節月の月干支インデックスを提供するテーブルを利用する。
 try:
@@ -70,43 +72,43 @@ def get_year_kanshi_from_risshun(birth_date: date) -> dict[str, str] | None:
     return kanshi_data.get(index)
 
 
-# def get_month_kanshi_index(birth_date: date) -> int | None:
-#     """節月基準の月干支インデックス（1〜60）を返します。
-#
-#     `day_kanshi_dict.py` に定義された `kanshi_index_table` を参照して、
-# その年と節月における月の1日目の干支インデックスを計算します。
-# 立春前の日付は前年のデータを利用し、節月番号は 12 とします。
-    #
-    # データが存在しない場合は None を返します。
-    # """
-    # year = birth_date.year
+def get_month_kanshi_index(birth_date: date) -> int | None:
+    """節月基準の月干支インデックス（1〜60）を返します。
+
+    `day_kanshi_dict.py` に定義された `kanshi_index_table` を参照して、
+    その年と節月における月の1日目の干支インデックスを計算します。
+    立春前の日付は前年のデータを利用し、節月番号は 12 とします。
+
+    データが存在しない場合は None を返します。
+    """
+    year = birth_date.year
     # 立春データの有無に関わらず、節月番号は get_setsuge_month で算出
-    # month_no = get_setsuge_month(birth_date)
+    month_no = get_setsuge_month(birth_date)
     # 立春前の場合は前年のデータを参照
-    # risshun = risshun_dict.get(year)
-    # year_for_table = year
-    # if risshun is not None and birth_date < risshun:
-    #     year_for_table = year - 1
+    risshun = risshun_dict.get(year)
+    year_for_table = year
+    if risshun is not None and birth_date < risshun:
+        year_for_table = year - 1
     # 対応する年のテーブルを取得
-    # try:
-    #     base_index = kanshi_index_table[year_for_table][month_no]
-    # except Exception:
-    #     return None
+    try:
+        base_index = kanshi_index_table[year_for_table][month_no]
+    except Exception:
+        return None
     # 月の1日目の干支インデックスは base_index + 1
-    # month_index = base_index + 1
-    # if month_index > 60:
-    #     month_index -= 60
-# return month_index
+    month_index = base_index + 1
+    if month_index > 60:
+        month_index -= 60
+    return month_index
 
-# def get_year_kanshi_index(date):
-#    year = date.year
-#    risshun = risshun_dict[year]
-#    if date < risshun:
-#        year -= 1
-#    return kanshi_index_table[year]
+def get_year_kanshi_index(date):
+    year = date.year
+    risshun = risshun_dict[year]
+    if date < risshun:
+        year -= 1
+    return kanshi_index_table[year]
 
 
-def get_month_kanshi_index(date):
+def month_kanshi_index_dict(date):
     year = date.year
     month = date.month
     day = date.day
@@ -114,7 +116,7 @@ def get_month_kanshi_index(date):
     if date < risshun:
         year -= 1
     # 修正ポイント：年と月から直接インデックス取得（1月〜12月）
-    return month_kanshi_index_table[year][month]
+    return month_kanshi_index_dict[year][month]
 
 
 def get_kanshi_name(index):
@@ -133,7 +135,7 @@ def get_tensatsu_group(index):
 
 def get_month_kanshi(birth_date: date) -> dict[str, str] | None:
     """生年月日から月干支の辞書（干支名と天中殺グループ）を返す。"""
-    index = get_month_kanshi_index(birth_date)
+    index = month_kanshi_index_dict(birth_date)
     if index is None:
         return None
     return kanshi_data.get(index)
