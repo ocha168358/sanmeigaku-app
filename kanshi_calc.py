@@ -14,176 +14,145 @@
 `get_setsuge_month()` と `get_year_kanshi_index()` の結果を組み合わせて計算します。
 """
 
-from __future__ import annotations
+# app.py
+import streamlit as st
+from datetime import datetime, date
 
-from datetime import date
-from risshun_data import risshun_dict
-from hayami import kanshi_data
-from .kanshi_index_table import kanshi_index_table
-from month_kanshi_index_dict import month_kanshi_index_dict  # 追加
+# --- 既存ロジック（インポート or 同ファイルに定義） ---
+# from kanshi_calc import get_year_kanshi_from_risshun, get_day_kanshi_from_table, get_tenchusatsu_from_day_index
+# from tenchusatsu_messages import tentyuusatsu_messages
 
-month_kanshi = get_kanshi_name(month_kanshi_index_dict.get((birth_date.year, birth_date.month)))
+# -----------------------------------------
+# ウィザード共通設定
+# -----------------------------------------
+st.set_page_config(page_title="天中殺診断（ステップ式）", page_icon="🔮", layout="centered")
 
-# day_kanshi_dict が存在する場合、各年・節月の月干支インデックスを提供するテーブルを利用する。
-try:
-    # `kanshi_index_table[year][month]` は、その年の節月の「0日目」の干支インデックスを表す。
-    # 1日目の干支インデックスはこの値に1を足したものとなる。
-    from day_kanshi_dict import kanshi_index_table  # type: ignore
-except ImportError:
-    kanshi_index_table: dict[int, dict[int, int]] = {}
+STEPS = ["生年月日入力", "確認", "診断結果"]
 
+if "step" not in st.session_state:
+    st.session_state.step = 0
+if "birth_date" not in st.session_state:
+    st.session_state.birth_date = None
+if "result" not in st.session_state:
+    st.session_state.result = {}
 
-def get_setsuge_month(birth_date: date) -> int:
-    """立春基準で節月番号（1〜12）を返す。
+def go_next():
+    st.session_state.step = min(st.session_state.step + 1, len(STEPS)-1)
 
-    立春前の日付は前年の12月節とするため 12 を返し、立春以降はその月の番号を返す。
-    """
-    year = birth_date.year
-    risshun = risshun_dict.get(year)
-    # 立春データが無い場合は暦月を返す
-    if risshun is None:
-        return birth_date.month
-    if birth_date < risshun:
-        return 12
-    return birth_date.month
+def go_prev():
+    st.session_state.step = max(st.session_state.step - 1, 0)
 
+def reset_all():
+    st.session_state.step = 0
+    st.session_state.birth_date = None
+    st.session_state.result = {}
 
-def get_year_kanshi_index(birth_date: date) -> int:
-    """年干支のインデックス（1〜60）を返します。
+# -----------------------------------------
+# ヘッダー／進捗
+# -----------------------------------------
+st.title("天中殺診断 🔮")
+st.caption("立春基準で年・月の扱いを整えた計算ロジックを使っています。")
+st.progress((st.session_state.step+1)/len(STEPS))
+st.write(f"**STEP {st.session_state.step+1} / {len(STEPS)}：{STEPS[st.session_state.step]}**")
 
-    立春より前の場合は前年の干支とし、1984年（甲子）をサイクルの起点として
-    60干支の番号を計算します。
-    """
-    year = birth_date.year
-    risshun = risshun_dict.get(year)
-    if risshun is not None and birth_date < risshun:
-        year -= 1
-    # 1984年=甲子を1とした60干支サイクル
-    return ((year - 1984) % 60) + 1
+# -----------------------------------------
+# STEP 1: 生年月日入力
+# -----------------------------------------
+if st.session_state.step == 0:
+    st.markdown("次の範囲で生年月日を選んでください。選んだら「次へ」。")
 
+    with st.form("input_form", clear_on_submit=False):
+        bd = st.date_input(
+            "生年月日",
+            value=st.session_state.birth_date or date(2000, 1, 1),
+            min_value=date(1900, 1, 1),
+            max_value=date(2033, 12, 31),
+            help="※ 立春（2/3〜2/5頃）をまたぐ場合は内部で前年扱いになります。"
+        )
+        col1, col2 = st.columns([1,1])
+        submitted = col1.form_submit_button("次へ ▶")
+        cancel = col2.form_submit_button("リセット", on_click=reset_all)
 
-def get_year_kanshi_from_risshun(birth_date: date) -> dict[str, str] | None:
-    """生年月日から年干支の辞書（干支名と天中殺グループ）を返す。
+    if submitted:
+        st.session_state.birth_date = bd
+        go_next()
 
-    辞書には `kanshi`（干支名）と `tensatsu`（天中殺グループ）が含まれます。
-    データが存在しない場合は None を返します。
-    """
-    index = get_year_kanshi_index(birth_date)
-    return kanshi_data.get(index)
+# -----------------------------------------
+# STEP 2: 確認
+# -----------------------------------------
+elif st.session_state.step == 1:
+    bd = st.session_state.birth_date
+    st.info("入力内容を確認してください。問題なければ「診断する」。修正したい場合は「戻る」。")
 
+    with st.container(border=True):
+        st.write("**生年月日**：", bd.strftime("%Y年 %m月 %d日（%a）"))
 
-def get_month_kanshi_index(birth_date: date) -> int | None:
-    """節月基準の月干支インデックス（1〜60）を返します。
+        # プレビュー（任意）：ここで年干支・日干支の“予定値”を一旦計算して見せることも可能
+        try:
+            year_kanshi = get_year_kanshi_from_risshun(bd)
+            day_kanshi, idx = get_day_kanshi_from_table(bd)
+            st.write("**年干支（立春基準）**：", year_kanshi)
+            st.write("**日干支（伝統方式）**：", f"{day_kanshi}（index: {idx}）")
+        except Exception:
+            st.write("プレビューは省略します。")
 
-    `day_kanshi_dict.py` に定義された `kanshi_index_table` を参照して、
-    その年と節月における月の1日目の干支インデックスを計算します。
-    立春前の日付は前年のデータを利用し、節月番号は 12 とします。
+    col1, col2 = st.columns([1,1])
+    col1.button("◀ 戻る", on_click=go_prev, use_container_width=True)
+    def _run_calc():
+        bd2 = st.session_state.birth_date
+        # --- ここで本計算 ---
+        yk = get_year_kanshi_from_risshun(bd2)                  # 文字列（例: '甲子'）
+        dk, idx = get_day_kanshi_from_table(bd2)                # ('丁巳', 54) のような戻り値を想定
+        ts = get_tenchusatsu_from_day_index(idx) if idx else "該当なし"
+        msg = tentyuusatsu_messages.get(ts, [])
+        st.session_state.result = {
+            "birth_date": bd2,
+            "year_kanshi": yk,
+            "day_kanshi": dk,
+            "day_index": idx,
+            "tenchusatsu": ts,
+            "messages": msg,
+        }
+        go_next()
+    col2.button("診断する ✅", on_click=_run_calc, type="primary", use_container_width=True)
 
-    データが存在しない場合は None を返します。
-    """
-    year = birth_date.year
-    # 立春データの有無に関わらず、節月番号は get_setsuge_month で算出
-    month_no = get_setsuge_month(birth_date)
-    # 立春前の場合は前年のデータを参照
-    risshun = risshun_dict.get(year)
-    year_for_table = year
-    if risshun is not None and birth_date < risshun:
-        year_for_table = year - 1
-    # 対応する年のテーブルを取得
-    try:
-        base_index = kanshi_index_table[year_for_table][month_no]
-    except Exception:
-        return None
-    # 月の1日目の干支インデックスは base_index + 1
-    month_index = base_index + 1
-    if month_index > 60:
-        month_index -= 60
-    return month_index
+# -----------------------------------------
+# STEP 3: 結果
+# -----------------------------------------
+else:
+    r = st.session_state.result
+    if not r:
+        st.warning("結果が見つかりません。最初からやり直してください。")
+        st.button("最初に戻る", on_click=reset_all)
+    else:
+        with st.container(border=True):
+            st.subheader("診断結果")
+            st.write("**生年月日**：", r["birth_date"].strftime("%Y年 %m月 %d日"))
+            st.write("**年干支（立春基準）**：", r["year_kanshi"])
+            st.write("**日干支（伝統方式）**：", f"{r['day_kanshi']}（index: {r['day_index']}）")
+            st.write("**天中殺**：", r["tenchusatsu"])
 
-def get_year_kanshi_index(date):
-    year = date.year
-    risshun = risshun_dict[year]
-    if date < risshun:
-        year -= 1
-    return kanshi_index_table[year]
+        if r["messages"]:
+            st.markdown("—")
+            st.write("**メッセージ**")
+            for line in r["messages"]:
+                st.markdown(f"- {line}")
 
+        st.markdown("—")
+        col1, col2 = st.columns([1,1])
+        col1.button("◀ 入力に戻る", on_click=go_prev, use_container_width=True)
+        col2.button("もう一度診断する 🔁", on_click=reset_all, use_container_width=True)
 
-def month_kanshi_index_dict(date):
-    year = date.year
-    month = date.month
-    day = date.day
-    risshun = risshun_dict[year]
-    if date < risshun:
-        year -= 1
-    # 修正ポイント：年と月から直接インデックス取得（1月〜12月）
-    return month_kanshi_index_dict[year][month]
+# -----------------------------------------
+# サイドバー：手順ナビ（読み取り専用）
+# -----------------------------------------
+with st.sidebar:
+    st.header("進行状況")
+    for i, name in enumerate(STEPS):
+        flag = "✅" if i < st.session_state.step else ("🟡" if i == st.session_state.step else "⚪")
+        st.write(f"{flag}  STEP {i+1}: {name}")
+    st.divider()
+    st.caption("※ サイドバーはナビの表示のみで、直接のスキップはできません。")
 
-
-def get_kanshi_name(index):
-    for data in kanshi_data.values():
-        if data["index"] == index:
-            return data["kanshi"]
-    return None
-
-
-def get_tensatsu_group(index):
-    for data in kanshi_data.values():
-        if data["index"] == index:
-            return data["tensatsu"]
-    return None
-
-
-def get_month_kanshi(birth_date: date) -> dict[str, str] | None:
-    """生年月日から月干支の辞書（干支名と天中殺グループ）を返す。"""
-    index = month_kanshi_index_dict(birth_date)
-    if index is None:
-        return None
-    return kanshi_data.get(index)
-
-
-def get_kanshi_name(index: int) -> str | None:
-    """干支インデックスから干支名を取得する。存在しない場合は None。"""
-    data = kanshi_data.get(index)
-    return data.get("kanshi") if data else None
-
-
-def get_tensatsu_group(index: int) -> str | None:
-    """干支インデックスから天中殺グループ（子丑・寅卯…）を取得する。"""
-    data = kanshi_data.get(index)
-    return data.get("tensatsu") if data else None
-
-
-def get_tenchusatsu_group_by_indices(birth_date: date) -> str:
-    """年干支インデックスと節月番号・日を用いて天中殺を判定する関数。
-
-    判定手順：
-      1. 年干支インデックス（1〜60）を求める。
-      2. 節月番号（get_setsuge_monthで得られる1〜12）を加算。
-      3. 誕生日の日（birth_date.day）を加算。
-      4. 合計値を60で割った余り（0は60とする）を天中殺インデックスとする。
-      5. インデックスの範囲に応じてグループを決定する。
-
-    返り値例："あなたの天中殺は寅卯天中殺です"
-    """
-    year_index = get_year_kanshi_index(birth_date)
-    month_no = get_setsuge_month(birth_date)
-    day_no = birth_date.day
-    total = (year_index + month_no + day_no) % 60
-    if total == 0:
-        total = 60
-    # 6つのグループに割り当て
-    if 1 <= total <= 10:
-        group = "子丑"
-    elif 11 <= total <= 20:
-        group = "寅卯"
-    elif 21 <= total <= 30:
-        group = "辰巳"
-    elif 31 <= total <= 40:
-        group = "午未"
-    elif 41 <= total <= 50:
-        group = "申酉"
-    else:  # 51〜60
-        group = "戌亥"
-    return f"あなたの天中殺は{group}天中殺です"
 
 
