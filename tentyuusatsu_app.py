@@ -44,19 +44,56 @@ def get_setsuge_month(birth_date):
 
 # ーーー 追加：月干支の取得（固定表＋立春年で参照） ーーー
 def get_month_kanshi_from_table(birth_date):
+    """
+    month_kanshi_index_dict のキー形式違いに対応して探索。
+    想定される形を順に当てて、最初にヒットしたものを採用。
+    """
     base_year, setsu_no = _calc_base_year_and_setsuge(birth_date)
-    # 暦月優先 → 立春年×暦月 → 立春年×節月 → 暦年×暦月
-    cand_keys = [
-        (base_year, birth_date.month),  # ← 先頭に
+    cal_m = birth_date.month
+
+    # 1) ネスト辞書: dict[年][月] / dict[年][節月]
+    nested_candidates = [
+        (base_year, cal_m),
         (base_year, setsu_no),
-        (birth_date.year, birth_date.month),
+        (birth_date.year, cal_m),
     ]
-    for y, m in cand_keys:
+
+    for y, m in nested_candidates:
         try:
             idx = int(month_kanshi_index_dict[y][m])
-            return kanshi_list[idx], idx, {"hit": (y, m), "base_year": base_year, "setsu_no": setsu_no}
+            return kanshi_list[idx], idx, {"hit": ("nested", y, m), "base_year": base_year, "setsu_no": setsu_no}
         except Exception:
             pass
+
+    # 2) タプルキー: dict[(年, 月)] / dict[(年, 節月)]
+    tuple_candidates = [
+        (base_year, cal_m),
+        (base_year, setsu_no),
+        (birth_date.year, cal_m),
+    ]
+    for y, m in tuple_candidates:
+        try:
+            idx = int(month_kanshi_index_dict[(y, m)])
+            return kanshi_list[idx], idx, {"hit": ("tuple", y, m), "base_year": base_year, "setsu_no": setsu_no}
+        except Exception:
+            pass
+
+    # 3) 文字列キー: "YYYY-MM" / "YYYYMM"
+    str_candidates = [
+        f"{base_year}-{cal_m:02d}",
+        f"{base_year}-{setsu_no:02d}",
+        f"{birth_date.year}-{cal_m:02d}",
+        f"{base_year}{cal_m:02d}",
+        f"{base_year}{setsu_no:02d}",
+        f"{birth_date.year}{cal_m:02d}",
+    ]
+    for k in str_candidates:
+        try:
+            idx = int(month_kanshi_index_dict[k])
+            return kanshi_list[idx], idx, {"hit": ("str", k), "base_year": base_year, "setsu_no": setsu_no}
+        except Exception:
+            pass
+
     return "該当なし", None, {"hit": None, "base_year": base_year, "setsu_no": setsu_no}
 
 def get_day_kanshi_from_table(birth_date):
