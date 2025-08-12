@@ -50,23 +50,30 @@ def get_month_kanshi_from_table(birth_date):
 
 def get_day_kanshi_from_table(birth_date):
     """
-    日干支：kanshi_index_table[(年, 月)] の“その月の1日インデックス”＋日（60超は-60）。
-    月は“暦月”でキー参照（現行DBに合わせる）。
+    日干支：まず {年:{月:idx}} のネスト辞書を参照、
+    見つからなければ (年, 月) タプルキーをフォールバック。
+    取得した“その月の1日インデックス”に＋日（60超は折返し）。
     """
     base_year = birth_date.year
     rs = risshun_dict.get(base_year)
     if rs and birth_date < rs:
         base_year -= 1
 
-    key_tuple = (base_year, birth_date.month)
+    # ① ネスト辞書優先
+    base_index = None
     try:
-        base_index = int(kanshi_index_table[key_tuple])  # その月の1日のインデックス
-        idx = base_index + birth_date.day
-        while idx > 60:
-            idx -= 60
-        return kanshi_list[idx], idx
+        base_index = int(kanshi_index_table[base_year][birth_date.month])
     except Exception:
-        return "該当なし", None
+        # ② タプルキーにフォールバック
+        try:
+            base_index = int(kanshi_index_table[(base_year, birth_date.month)])
+        except Exception:
+            return "該当なし", None
+
+    idx = base_index + birth_date.day
+    while idx > 60:
+        idx -= 60
+    return kanshi_list[idx], idx
 
 def get_tenchusatsu_from_day_index(index):
     if index is None:
