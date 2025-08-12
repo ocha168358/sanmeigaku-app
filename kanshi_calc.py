@@ -154,18 +154,5 @@ with st.sidebar:
     st.divider()
     st.caption("※ サイドバーはナビの表示のみで、直接のスキップはできません。")
 
-def get_month_kanshi_name(birth_date):
-    """月干支の名前（立春基準）を返す"""
-    # 月干支インデックス取得
-    year = birth_date.year
-    month = get_setsuge_month(birth_date)
-    risshun = risshun_dict.get(year)
-    if risshun and birth_date < risshun:
-        year -= 1
-    index = month_kanshi_index_dict.get((year, month))
-    if not index:
-        return None
-    # 干支名に変換
-    data = kanshi_data.get(index)
-    return data["kanshi"] if data else None
+
 
