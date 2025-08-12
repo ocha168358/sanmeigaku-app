@@ -44,17 +44,11 @@ def get_setsuge_month(birth_date):
 
 # ーーー 追加：月干支の取得（固定表＋立春年で参照） ーーー
 def get_month_kanshi_from_table(birth_date):
-    """
-    month_kanshi_index_dict のキー形式違いに対応:
-      1) month_kanshi_index_dict[base_year][節月(1-12)]
-      2) month_kanshi_index_dict[base_year][暦月(1-12)]
-      3) month_kanshi_index_dict[birth_date.year][暦月(1-12)]
-    の順で探索。
-    """
     base_year, setsu_no = _calc_base_year_and_setsuge(birth_date)
+    # 暦月優先 → 立春年×暦月 → 立春年×節月 → 暦年×暦月
     cand_keys = [
+        (base_year, birth_date.month),  # ← 先頭に
         (base_year, setsu_no),
-        (base_year, birth_date.month),
         (birth_date.year, birth_date.month),
     ]
     for y, m in cand_keys:
@@ -66,24 +60,17 @@ def get_month_kanshi_from_table(birth_date):
     return "該当なし", None, {"hit": None, "base_year": base_year, "setsu_no": setsu_no}
 
 def get_day_kanshi_from_table(birth_date):
-    """
-    day_kanshi_dict(kanshi_index_table) もキー形式違いに対応して探索:
-      1) kanshi_index_table[base_year][節月(1-12)]   ← 立春年×節月
-      2) kanshi_index_table[base_year][暦月(1-12)]   ← 立春年×暦月
-      3) kanshi_index_table[birth_date.year][暦月]   ← 暦年×暦月（従来どおり）
-    取得できた “その月1日のインデックス” に **＋日** で計算（60超は-60）。
-    """
     base_year, setsu_no = _calc_base_year_and_setsuge(birth_date)
     cand_keys = [
+        (base_year, birth_date.month),  # ← 先頭に
         (base_year, setsu_no),
-        (base_year, birth_date.month),
         (birth_date.year, birth_date.month),
     ]
     last_dbg = {"hit": None, "base_year": base_year, "setsu_no": setsu_no, "base_index": None}
     for y, m in cand_keys:
         try:
-            base_index = int(kanshi_index_table[y][m])  # その“月初”インデックス
-            day_index = base_index + birth_date.day     # 仕様どおり「＋日」
+            base_index = int(kanshi_index_table[y][m])
+            day_index = base_index + birth_date.day
             while day_index > 60:
                 day_index -= 60
             last_dbg.update({"hit": (y, m), "base_index": base_index, "day_index": day_index})
