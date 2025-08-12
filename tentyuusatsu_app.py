@@ -3,12 +3,10 @@ from datetime import datetime
 from risshun_data import risshun_dict
 from day_kanshi_dict import kanshi_index_table
 from tenchusatsu_messages import tentyuusatsu_messages
-from month_kanshi_index_dict import month_kanshi_index_dict
-from kanshi_calc import get_kanshi_name
 
 # 1番目を空欄にして、干支の「1〜60番」と index を合わせる
 kanshi_list = [
-    "",  # index=0 を空に
+    "",  # ← index=0 を空にして1始まりに
     "甲子", "乙丑", "丙寅", "丁卯", "戊辰", "己巳", "庚午", "辛未", "壬申", "癸酉",
     "甲戌", "乙亥", "丙子", "丁丑", "戊寅", "己卯", "庚辰", "辛巳", "壬午", "癸未",
     "甲申", "乙酉", "丙戌", "丁亥", "戊子", "己丑", "庚寅", "辛卯", "壬辰", "癸巳",
@@ -18,29 +16,20 @@ kanshi_list = [
 ]
 
 def get_year_kanshi_from_risshun(birth_date):
-    """立春基準で年干支を取得"""
     year = birth_date.year
-    risshun = risshun_dict.get(year)
-    if risshun and birth_date < risshun:
-        year -= 1
-    kanshi_index = ((year - 1984) % 60) + 1
+    kanshi_index = ((year - 1984) % 60) + 1  # ← ここに +1 が必要
     return kanshi_list[kanshi_index]
-
 def get_setsuge_month(birth_date):
-    """立春基準で節月（1～12）を取得"""
+    """立春ベースで節月（1～12）を算出"""
     year = birth_date.year
     risshun = risshun_dict.get(year)
     if risshun and birth_date < risshun:
-        return 12
+        return 12  # 前年の12月節（1月〜立春前）
     return birth_date.month
 
 def get_day_kanshi_from_table(birth_date):
-    """日干支を表データから取得"""
     year = birth_date.year
     month = get_setsuge_month(birth_date)
-    risshun = risshun_dict.get(year)
-    if risshun and birth_date < risshun:
-        year -= 1
     try:
         base_index = kanshi_index_table[year][month]
         day_index = base_index + birth_date.day
@@ -51,7 +40,6 @@ def get_day_kanshi_from_table(birth_date):
         return "該当なし", None
 
 def get_tenchusatsu_from_day_index(index):
-    """日干支インデックスから天中殺グループを判定"""
     if index is None:
         return "該当なし"
     if 51 <= index <= 60 or index == 0:
@@ -74,23 +62,19 @@ def main():
     birth_date = st.date_input(
         "生年月日を入力してください（範囲：1900年～2033年）",
         value=datetime(2000, 1, 1),
-        min_value=datetime(1900, 1, 1),
+        min_value=datetime(1900, 1, 1),  # ←ここを修正
         max_value=datetime(2033, 12, 31)
     )
+    # 今は1925〜2025年のデータのみ正確なため、範囲を制限中
+    # データ拡張後に以下へ戻す：
+    # min_value=datetime(1900, 1, 1)
+    # max_value=datetime(2033, 12, 31)
 
     if st.button("診断する"):
-        # 年干支
         year_kanshi = get_year_kanshi_from_risshun(birth_date)
-
-        # 月干支（A方式）
-        month_index = month_kanshi_index_dict.get((birth_date.year, birth_date.month))
-        month_kanshi = get_kanshi_name(month_index) if month_index else "該当なし"
-
-        # 日干支
         day_kanshi, index = get_day_kanshi_from_table(birth_date)
 
         st.markdown(f"### 年干支（立春基準）: {year_kanshi}")
-        st.markdown(f"### 月干支（立春基準）: {month_kanshi}")  # ←追加
         st.markdown(f"### 日干支＆天中殺用数値： {day_kanshi}（インデックス: {index}）")
 
         if index is None:
