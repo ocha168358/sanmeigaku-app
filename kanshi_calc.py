@@ -7,9 +7,27 @@ from month_kanshi_index_dict import month_kanshi_index_dict  # 月：同上（�
 
 
 # === ここを必ず用意：干支名をインデックスから引くヘルパー ===
-def get_kanshi_name(index: int) -> str | None:
+def get_kanshi_name(index: int | None) -> str | None:
+    if index is None:
+        return None
     data = kanshi_data.get(index)
-    return data["kanshi"] if data else None
+    return data.get("kanshi") if data else None
+
+def get_month_kanshi_name_fixed(birth_date: date) -> str | None:
+    """
+    固定表 month_kanshi_index_dict を使うが、
+    月の選択だけ『節月（立春基準）』で行う。
+      - 立春前：前年の「12月節」
+      - 立春以後：その年の暦月をそのまま
+    """
+    y = birth_date.year
+    m = birth_date.month
+
+    risshun = risshun_dict.get(y)
+    if risshun and birth_date < risshun:
+        # 立春より前は前年の12月節を参照
+        y = y - 1
+        m = 12
 # ===========================================================
 
 # ===== 基本ユーティリティ =====

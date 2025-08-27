@@ -2,8 +2,8 @@ import streamlit as st
 from datetime import datetime
 from risshun_data import risshun_dict
 from day_kanshi_dict import kanshi_index_table
-from month_kanshi_index_dict import month_kanshi_index_dict
 from tenchusatsu_messages import tentyuusatsu_messages
+# from month_kanshi_index_dict import month_kanshi_index_dict
 # from kanshi_calc import get_month_kanshi_name_dynamic
 from kanshi_calc import get_month_kanshi_name_fixed
 
@@ -53,31 +53,17 @@ def get_month_kanshi_from_table(birth_date):
         return "該当なし", None
 
 def get_day_kanshi_from_table(birth_date):
-    """
-    日干支：まず {年:{月:idx}} のネスト辞書を参照、
-    見つからなければ (年, 月) タプルキーをフォールバック。
-    取得した“その月の1日インデックス”に＋日（60超は折返し）。
-    """
-    base_year = birth_date.year
-    rs = risshun_dict.get(base_year)
-    if rs and birth_date < rs:
-        base_year -= 1
-
-    # ① ネスト辞書優先
-    base_index = None
+    # 日干支は「暦月ベース（1〜12）」で計算する。立春判定は使わない。
+    year = birth_date.year
+    month = birth_date.month
     try:
-        base_index = int(kanshi_index_table[base_year][birth_date.month])
-    except Exception:
-        # ② タプルキーにフォールバック
-        try:
-            base_index = int(kanshi_index_table[(base_year, birth_date.month)])
-        except Exception:
-            return "該当なし", None
-
-    idx = base_index + birth_date.day
-    while idx > 60:
-        idx -= 60
-    return kanshi_list[idx], idx
+        base_index = kanshi_index_table[year][month]  # 月初の干支index - 1（固定表）
+        day_index = base_index + birth_date.day
+        if day_index > 60:
+            day_index -= 60
+        return kanshi_list[day_index], day_index
+    except (KeyError, TypeError):
+        return "該当なし", None
 
 def get_tenchusatsu_from_day_index(index):
     if index is None:
