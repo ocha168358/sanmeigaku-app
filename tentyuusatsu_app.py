@@ -129,34 +129,34 @@ def _day_anchor_from_table(year: int, month: int):
 def _prev_month(y: int, m: int):
     return (y - 1, 12) if m == 1 else (y, m - 1)
 
+# ================= 日干支：1900-02-20(甲子)アンカーの60日周期 =================
+
+def _jdn_ymd(y: int, m: int, d: int) -> int:
+    """ユリウス通日（Fliegel–Van Flandern）。日付だけ使うのでタイムゾーンの影響なし。"""
+    a = (14 - m) // 12
+    yy = y + 4800 - a
+    mm = m + 12 * a - 3
+    return d + (153 * mm + 2) // 5 + 365 * yy + yy // 4 - yy // 100 + yy // 400 - 32045
+
 def get_day_kanshi_from_table(birth_date):
     """
-    固定表A：その月の「月数値」 + 「日」で算出。
-    欠損/0のときのみ、前月1日をアンカーに “経過日数 + 1” で補完。
-    立春補正は行わない（暦年・暦月で見る）。
+    固定表は使わず、1900-02-20 を 甲子(=index 1) として 60日周期で計算。
+    ・閏年/各月の日数に依存せず、常にズレない。
+    ・戻り値の形は既存どおり (干支名, index, debug)。
     """
     d = _as_date(birth_date)
-    y, m, dd = d.year, d.month, d.day
+    jdn = _jdn_ymd(d.year, d.month, d.day)
+    jdn_ref = _jdn_ymd(1900, 2, 20)  # 甲子
 
-    base = _day_anchor_from_table(y, m)
-    if base is not None:
-        idx = _wrap_1_60(base + dd)  # ルール：アンカー + 日
-        return kanshi_name(idx), idx, {"hit": (y, m), "base": base, "day": dd}
+    idx = ((jdn - jdn_ref) % 60) + 1  # 1..60
+    return kanshi_name(idx), idx, {
+        "method": "JDN60",
+        "anchor": "1900-02-20(甲子)",
+        "jdn": jdn,
+        "delta_days": jdn - jdn_ref,
+    }
 
-    # 欠損補完（最大36ヶ月遡り）
-    yy, mm = y, m
-    for _ in range(36):
-        yy, mm = _prev_month(yy, mm)
-        base = _day_anchor_from_table(yy, mm)
-        if base is not None:
-            anchor = date(yy, mm, 1)
-            delta = (d - anchor).days + 1  # 「+日」ルールに合わせる
-            idx = _wrap_1_60(base + delta)
-            return kanshi_name(idx), idx, {"hit": (yy, mm), "base": base, "delta_plus1": delta}
-
-    return "該当なし", None, {"hit": None}
-
-# UIがこの名前で呼んでいる場合に合わせたラッパー
+# UI がこの名前で呼んでいる場合に合わせたラッパー（既存どおり）
 def get_day_kanshi(birth_date):
     return get_day_kanshi_from_table(birth_date)
 
