@@ -70,48 +70,79 @@ def get_year_kanshi(bd: date) -> str:
     idx = ((y - 1984) % 60) + 1
     return KANSHI[idx]
 
-def get_month_kanshi(bd: date):
-    """
-    月干支（固定表＋立春処理）。
-    立春前は「前年の前月（=12月節）」を参照する。
-    例）1999/01/01 → 1998/12 の値を採用（= 甲子）
-    戻り値: (干支名 or '該当なし', index or None, debug dict)
-    """
-    y, m = bd.year, bd.month
+# --- 追加: 辞書読み取りのユーティリティ（tentyuusatsu_app.py 内） ---
+def _wrap60(n: int) -> int:
+    return ((int(n) - 1) % 60) + 1
+
+def _setsuge_key(birth_date):
+    """節月（立春基準）で参照する (year, month) を返す。"""
+    y, m = birth_date.year, birth_date.month
     rs = risshun_dict.get(y)
-    if rs and bd < rs:
-        # 立春前。前年の【前月】へずらす
-        if m == 1:
-            y -= 1
-            m = 12
-        else:
-            y -= 1
-            m -= 1
+    return (y - 1, 12) if (rs and birth_date < rs) else (y, m)
 
-    idx = _get_month_index_from_any_key(y, m)
-    if not idx:
-        return "該当なし", None, {"hit": None, "year": y, "month": m}
+def get_month_kanshi_index_fixed(birth_date):
+    """固定辞書から月干支インデックス(1..60)を取得。計算しない。"""
+    y, m = _setsuge_key(birth_date)
 
-    idx = _wrap_1_60(idx)
-    return KANSHI[idx], idx, {"hit": (y, m)}
+    # まず (年, 月) を見る
+    v = month_kanshi_index_dict.get((y, m))
+    if v is None:
+        # フォールバック：{年:{月:idx}} 形式
+        try:
+            v = month_kanshi_index_dict[y][m]
+        except Exception:
+            return None
 
-def get_day_kanshi(bd: date):
-    """
-    日干支。**カレンダー年・月**の固定表をそのまま使い、日にちを加算。
-    ・テーブル値が 0 の場合は 60 とみなす（表の表現揺れに対応）
-    戻り値: (干支名 or '該当なし', index or None, debug dict)
-    """
-    y, m, d = bd.year, bd.month, bd.day
     try:
-        base = int(kanshi_index_table[y][m])
+        v = int(v)   # 文字列なら int に
     except Exception:
-        return "該当なし", None, {"hit": None}
+        return None
 
-    if base == 0:
-        base = 60
-    idx = base + d
-    idx = _wrap_1_60(idx)
-    return KANSHI[idx], idx, {"hit": (y, m), "base": base, "day": d, "calc_index": idx}
+    if v == 0:       # 0 は 60 に丸め
+        v = 60
+    return _wrap60(v)  # 念のため 1..60 へ
+
+def get_month_kanshi_name_fixed(birth_date):
+    idx = get_month_kanshi_index_fixed(birth_date)
+    return kanshi_list[idx] if idx else "該当なし"
+
+# 既存コードが get_month_kanshi(...) を呼んでいる場合のラッパー
+def get_month_kanshi(birth_date):
+    idx = get_month_kanshi_index_fixed(birth_date)
+    return (kanshi_list[idx], idx, {"key": _setsuge_key(birth_date)}) if idx else ("該当なし", None, {"key": None})
+
+def _anchor_idx(y: int, m: int):
+    try:
+        v = kanshi_index_table.get(y, {}).get(m)
+        if v in (None, "", 0, "0"):   # 0/None は欠損扱い
+            return None
+        return _wrap60(int(v))
+    except Exception:
+        return None
+
+def get_day_kanshi(birth_date):
+    """固定表のルール：アンカー（その月1日の値）＋“日”で求める。"""
+    y, m, d = birth_date.year, birth_date.month, birth_date.day
+
+    base = _anchor_idx(y, m)
+    if base is not None:
+        idx = _wrap60(base + d)  # ← “+ (日)” が固定表のルール
+        return kanshi_list[idx], idx, {"hit": (y, m), "base": base, "day": d}
+
+    # 欠損/0 のとき：前月の1日をアンカーに “経過日数 + 1”
+    yy, mm = y, m
+    for _ in range(36):
+        mm -= 1
+        if mm == 0:
+            yy -= 1; mm = 12
+        base = _anchor_idx(yy, mm)
+        if base is not None:
+            anchor = date(yy, mm, 1)
+            delta = (birth_date - anchor).days + 1   # “+ 日” 仕様に合わせる
+            idx = _wrap60(base + delta)
+            return kanshi_list[idx], idx, {"hit": (yy, mm), "base": base, "delta_plus1": delta}
+
+    return "該当なし", None, {"hit": None}
 
 def tenchusatsu_from_index(idx: int) -> str:
     if idx is None:
