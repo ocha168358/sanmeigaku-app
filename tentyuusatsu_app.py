@@ -94,14 +94,28 @@ def main():
     )
 
     if st.button("診断する"):
+        # 年干支（そのまま）
         year_kanshi = get_year_kanshi_from_risshun(birth_date)
 
         # 月干支（固定表＋立春補正）
-        month_kanshi = get_month_kanshi_name_fixed(birth_date)
+        y, m = birth_date.year, birth_date.month
+        rs = risshun_dict.get(y)
+        if rs and birth_date < rs:
+            y, m = y - 1, 12
+        month_start = month_kanshi_index_dict.get((y, m))  # 1..60（月干支そのもの）
+        month_kanshi = get_kanshi_name(month_start) or "該当なし"
 
-        # 日干支名はアンカー差分で算出、天中殺用数値は従来の表＋日
-        day_kanshi_name = get_day_kanshi_name_by_anchor(birth_date)
-        day_kanshi_name_shown, tensatsu_index = day_kanshi_name, get_day_kanshi_from_table(birth_date)[1]
+        # 日干支（表示用）は甲子アンカー差分で算出（kanshi_calc.py の関数）
+        from kanshi_calc import get_day_kanshi_name_by_anchor
+        day_kanshi = get_day_kanshi_name_by_anchor(birth_date)
+
+        # 天中殺用インデックス（=「月値+日」方式。月値は“月干支-1”）
+        day_idx = None
+        if month_start:
+            base = (month_start - 1) % 60  # 0..59（『0日目』相当）
+            day_idx = (base + birth_date.day) % 60
+            if day_idx == 0:
+                day_idx = 60
 
         st.markdown(f"### 年干支（立春基準）：{year_kanshi}")
         st.markdown(f"### 月干支（立春基準）：{month_kanshi}")
