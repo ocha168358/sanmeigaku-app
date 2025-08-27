@@ -4,6 +4,7 @@ from risshun_data import risshun_dict
 from day_kanshi_dict import kanshi_index_table
 from month_kanshi_index_dict import month_kanshi_index_dict
 from tenchusatsu_messages import tentyuusatsu_messages
+from kanshi_calc import get_month_kanshi_name_dynamic
 
 # 1番目を空欄にして、干支の「1〜60番」と index を合わせる
 kanshi_list = [
@@ -104,7 +105,8 @@ def main():
 
     if st.button("診断する"):
         year_kanshi = get_year_kanshi_from_risshun(birth_date)
-        month_kanshi, _ = get_month_kanshi_from_table(birth_date)
+        # month_kanshi, _ = get_month_kanshi_from_table(birth_date)
+        month_kanshi = get_month_kanshi_name_dynamic(birth_date)
         day_kanshi, day_idx = get_day_kanshi_from_table(birth_date)
 
         # 表示順：年干支 → 月干支 → 日干支（インデックス付き）

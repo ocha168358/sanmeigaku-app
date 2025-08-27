@@ -79,3 +79,39 @@ def get_day_kanshi_name(index_1to60: int | None) -> str:
     if index_1to60 is None:
         return "該当なし"
     return kanshi_data[int(index_1to60)]["kanshi"]
+
+# ========= ここから追記：月干支（動的計算：立春をまたぐ場合は前年の12月節） =========
+
+def get_month_kanshi_index_dynamic(birth_date: date) -> int | None:
+    """
+    月干支インデックス（1〜60）を動的に返す。
+    - 立春前: 前年の「12月節」を使う → (year-1, 12)
+    - 立春以降: その年の暦月 → (year, month)
+    参照データは month_kanshi_index_dict（固定表）を使用するが、
+    年跨ぎだけを動的に処理するため安全。
+    """
+    year = birth_date.year
+    month = birth_date.month
+    risshun = risshun_dict.get(year)
+
+    # 立春前は前年の12月節扱い
+    if risshun is not None and birth_date < risshun:
+        key = (year - 1, 12)
+    else:
+        key = (year, month)
+
+    return month_kanshi_index_dict.get(key)
+
+
+def get_month_kanshi_name_dynamic(birth_date: date) -> str:
+    """
+    上のインデックス関数を使って月干支「名称」を返す。
+    該当しない場合は '該当なし' を返す。
+    """
+    idx = get_month_kanshi_index_dynamic(birth_date)
+    if not idx:
+        return "該当なし"
+    name = get_kanshi_name(idx)
+    return name if name else "該当なし"
+
+# ========= 追記ここまで =========
