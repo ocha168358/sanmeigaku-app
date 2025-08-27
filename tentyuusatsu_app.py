@@ -30,20 +30,36 @@ def _prev_month(y: int, m: int):
 
 def _as_date(x) -> date:
     """
-    入力を必ず datetime.date に正規化。
-    - datetime/date: そのまま date に
-    - str: 'YYYY-MM-DD' / 'YYYY/MM/DD' / 'YYYY.MM.DD' などをゆるく対応
+    入力を必ず datetime.date に正規化する超ゆるい版。
+    - datetime/date: そのまま
+    - 文字列: 1972-11-20 / 1972/11/20 / 1972.11.20 / 1972年11月20日 等
+    - year/month/day 属性を持つ任意オブジェクト（np.datetime64, pandas.Timestamp など）も受け入れ
     """
-    if isinstance(x, date):
+    # すでに date
+    if isinstance(x, date) and not isinstance(x, datetime):
         return x
+    # datetime
     if isinstance(x, datetime):
         return x.date()
+    # year/month/day 属性があれば素直に取り出す（Timestamp, numpy系など）
+    for attr in ("year", "month", "day"):
+        if not hasattr(x, attr):
+            break
+    else:
+        y = int(getattr(x, "year"))
+        m = int(getattr(x, "month"))
+        d = int(getattr(x, "day"))
+        return date(y, m, d)
+    # 文字列
     if isinstance(x, str):
         s = x.strip()
-        s = s.replace("年", "-").replace("月", "-").replace("日", "")
-        s = s.replace("/", "-").replace(".", "-")
-        # 例: 1972-11-20
+        s = (s.replace("年", "-").replace("月", "-").replace("日", "")
+               .replace("/", "-").replace(".", "-"))
+        # 'YYYY-MM-DD' を想定
         return datetime.fromisoformat(s).date()
+    # それ以外（例えば list/tuple の [YYYY,MM,DD] にも保険）
+    if isinstance(x, (list, tuple)) and len(x) >= 3:
+        return date(int(x[0]), int(x[1]), int(x[2]))
     raise TypeError(f"date型に変換できません: {type(x)}")
 
 # ================= 年干支 =================
@@ -140,6 +156,7 @@ st.title("天中殺診断アプリ（簡易版）")
 
 # 既定値：2000/01/01（環境差吸収のため date 指定）
 birth_date = st.date_input("生年月日を入力してください", value=date(2000, 1, 1))
+birth_date = _as_date(birth_date)  # ← 保険：常にdateに正規化
 
 if st.button("診断する"):
     # 年干支
