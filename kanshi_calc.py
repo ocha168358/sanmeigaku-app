@@ -126,9 +126,20 @@ def get_month_kanshi_name_dynamic(birth_date: date) -> str:
     return data["kanshi"] if (data and "kanshi" in data) else "該当なし"
 # --- 追記ここまで ---
 
+def _month_lookup_with_risshun(birth_date: date) -> tuple[int, int]:
+    """節月（立春基準）で参照すべき (year, month) を返す。
+       立春前は前年の12月節、それ以外はその年の暦月。"""
+    y, m = birth_date.year, birth_date.month
+    r = risshun_dict.get(y)
+    if r is not None and birth_date < r:
+        return (y - 1, 12)
+    return (y, m)
+
+def get_month_kanshi_index_fixed(birth_date: date) -> int | None:
+    """固定表 month_kanshi_index_dict を、節月基準で引く"""
+    y, m = _month_lookup_with_risshun(birth_date)
+    return month_kanshi_index_dict.get((y, m))
+
 def get_month_kanshi_name_fixed(birth_date: date) -> str | None:
-    """固定表（month_kanshi_index_dict）を使って月干支名を取得する"""
-    index = month_kanshi_index_dict.get((birth_date.year, birth_date.month))
-    if index is None:
-        return None
-    return get_kanshi_name(index)
+    idx = get_month_kanshi_index_fixed(birth_date)
+    return get_kanshi_name(idx)
