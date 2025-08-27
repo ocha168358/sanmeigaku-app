@@ -131,60 +131,50 @@ def kanshi_name(idx):
             return arr[i]
     return "該当なし"
 
-def get_day_kanshi(birth_date):
-    """固定表のルール：アンカー（その月1日の値）＋“日”で求める。"""
-    y, m, d = birth_date.year, birth_date.month, birth_date.day
+# ---- 日干支（固定表A：day_kanshi_dict をそのまま使う） ----
+def _day_anchor_from_table(year: int, month: int):
+    """day_kanshi_dict の '月数値'(1..60, 0は60扱い) を取り出す。
+    形式ゆらぎに合わせて、[年][月] → [(年, 月)] → "YYYY-MM"/"YYYYMM" の順で見る。
+    """
+    # 1) ネスト辞書: dict[年][月]
+    try:
+        v = kanshi_index_table[year][month]
+        v = int(v)
+        return 60 if v == 0 else v
+    except Exception:
+        pass
 
-    base = _anchor_idx(y, m)
-    if base is not None:
-        idx = _wrap60(base + d)  # ← “+ (日)” が固定表のルール
-        return kanshi_name(idx), idx, {"hit": (y, m), "base": base, "day": d}
+    # 2) タプルキー: dict[(年, 月)]
+    try:
+        v = kanshi_index_table[(year, month)]
+        v = int(v)
+        return 60 if v == 0 else v
+    except Exception:
+        pass
 
-    # 欠損/0 のとき：前月の1日をアンカーに “経過日数 + 1”
-    yy, mm = y, m
-    for _ in range(36):
-        mm -= 1
-        if mm == 0:
-            yy -= 1; mm = 12
-        base = _anchor_idx(yy, mm)
-        if base is not None:
-            anchor = date(yy, mm, 1)
-            delta = (birth_date - anchor).days + 1   # “+ 日” 仕様に合わせる
-            idx = _wrap60(base + delta)
-            return kanshi_name(idx), idx, {"hit": (yy, mm), "base": base, "delta_plus1": delta}
+    # 3) 文字列キー
+    for k in (f"{year}-{month:02d}", f"{year}{month:02d}"):
+        v = kanshi_index_table.get(k)
+        if v is not None:
+            v = int(v)
+            return 60 if v == 0 else v
 
-    return "該当なし", None, {"hit": None}
-
-def tenchusatsu_from_index(idx: int) -> str:
-    if idx is None:
-        return "該当なし"
-    if 51 <= idx <= 60 or idx == 0:
-        return "子丑"
-    elif 41 <= idx <= 50:
-        return "寅卯"
-    elif 31 <= idx <= 40:
-        return "辰巳"
-    elif 21 <= idx <= 30:
-        return "午未"
-    elif 11 <= idx <= 20:
-        return "申酉"
-    elif 1 <= idx <= 10:
-        return "戌亥"
-    return "不明"
-
-# --- 干支リスト名の違いを吸収（kanshi_list / kanshi_data / KANSHI など） ---
-def _get_kanshi_array():
-    for name in ("kanshi_list", "kanshi_data", "KANSHI"):
-        arr = globals().get(name)
-        if isinstance(arr, list) and len(arr) >= 61:
-            return arr
     return None
 
-def _kanshi_name(idx: int) -> str:
-    arr = _get_kanshi_array()
-    if not arr or not isinstance(idx, int) or idx < 1 or idx >= len(arr):
-        return "該当なし"
-    return arr[idx]
+def get_day_kanshi_from_table(birth_date):
+    """固定表Aの『月数値』＋『日』で日干支を出す（計算は最小限、立春補正なし）"""
+    y, m, d = birth_date.year, birth_date.month, birth_date.day
+    base = _day_anchor_from_table(y, m)
+    dbg = {"hit": (y, m), "base": base, "day": d}
+
+    if base is None:
+        # データ未整備時
+        return "該当なし", None, dbg
+
+    idx = base + d
+    while idx > 60:
+        idx -= 60
+    return kanshi_list[idx], idx, dbg
 
 # ---------------- UI（元の簡易版） ----------------
 st.title("天中殺診断アプリ【簡易版】")
