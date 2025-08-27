@@ -6,6 +6,7 @@ from tenchusatsu_messages import tentyuusatsu_messages
 # from month_kanshi_index_dict import month_kanshi_index_dict
 # from kanshi_calc import get_month_kanshi_name_dynamic
 from kanshi_calc import get_month_kanshi_name_fixed
+from kanshi_calc import get_month_kanshi_name_fixed, get_day_kanshi_name_by_anchor
 
 
 
@@ -94,15 +95,17 @@ def main():
 
     if st.button("診断する"):
         year_kanshi = get_year_kanshi_from_risshun(birth_date)
-        # month_kanshi, _ = get_month_kanshi_from_table(birth_date)
-        # month_kanshi = get_month_kanshi_name_dynamic(birth_date)
-        month_kanshi = get_month_kanshi_name_fixed(birth_date)
-        day_kanshi, day_idx = get_day_kanshi_from_table(birth_date)
 
-        # 表示順：年干支 → 月干支 → 日干支（インデックス付き）
+        # 月干支（固定表＋立春補正）
+        month_kanshi = get_month_kanshi_name_fixed(birth_date)
+
+        # 日干支名はアンカー差分で算出、天中殺用数値は従来の表＋日
+        day_kanshi_name = get_day_kanshi_name_by_anchor(birth_date)
+        day_kanshi_name_shown, tensatsu_index = day_kanshi_name, get_day_kanshi_from_table(birth_date)[1]
+
         st.markdown(f"### 年干支（立春基準）：{year_kanshi}")
         st.markdown(f"### 月干支（立春基準）：{month_kanshi}")
-        st.markdown(f"### 日干支＆天中殺用数値：{day_kanshi}（インデックス: {day_idx}）")
+        st.markdown(f"### 日干支＆天中殺用数値：{day_kanshi_name}（インデックス: {tensatsu_index}）")
 
         if day_idx is None:
             st.warning("この月の干支データが未登録のため、天中殺の診断ができません。")
