@@ -109,7 +109,7 @@ def get_month_kanshi_name_fixed(birth_date):
 # 既存コードが get_month_kanshi(...) を呼んでいる場合のラッパー
 def get_month_kanshi(birth_date):
     idx = get_month_kanshi_index_fixed(birth_date)
-    return (kanshi_list[idx], idx, {"key": _setsuge_key(birth_date)}) if idx else ("該当なし", None, {"key": None})
+    return (_kanshi_name(idx), idx, {"key": _setsuge_key(birth_date)}) if idx else ("該当なし", None, {"key": None})
 
 def _anchor_idx(y: int, m: int):
     try:
@@ -127,7 +127,7 @@ def get_day_kanshi(birth_date):
     base = _anchor_idx(y, m)
     if base is not None:
         idx = _wrap60(base + d)  # ← “+ (日)” が固定表のルール
-        return kanshi_list[idx], idx, {"hit": (y, m), "base": base, "day": d}
+        return kanshi_name(idx), idx, {"hit": (y, m), "base": base, "day": d}
 
     # 欠損/0 のとき：前月の1日をアンカーに “経過日数 + 1”
     yy, mm = y, m
@@ -140,7 +140,7 @@ def get_day_kanshi(birth_date):
             anchor = date(yy, mm, 1)
             delta = (birth_date - anchor).days + 1   # “+ 日” 仕様に合わせる
             idx = _wrap60(base + delta)
-            return kanshi_list[idx], idx, {"hit": (yy, mm), "base": base, "delta_plus1": delta}
+            return kanshi_name(idx), idx, {"hit": (yy, mm), "base": base, "delta_plus1": delta}
 
     return "該当なし", None, {"hit": None}
 
@@ -160,6 +160,20 @@ def tenchusatsu_from_index(idx: int) -> str:
     elif 1 <= idx <= 10:
         return "戌亥"
     return "不明"
+
+# --- 干支リスト名の違いを吸収（kanshi_list / kanshi_data / KANSHI など） ---
+def _get_kanshi_array():
+    for name in ("kanshi_list", "kanshi_data", "KANSHI"):
+        arr = globals().get(name)
+        if isinstance(arr, list) and len(arr) >= 61:
+            return arr
+    return None
+
+def _kanshi_name(idx: int) -> str:
+    arr = _get_kanshi_array()
+    if not arr or not isinstance(idx, int) or idx < 1 or idx >= len(arr):
+        return "該当なし"
+    return arr[idx]
 
 # ---------------- UI（元の簡易版） ----------------
 st.title("天中殺診断アプリ【簡易版】")
