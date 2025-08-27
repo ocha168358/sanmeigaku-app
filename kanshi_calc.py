@@ -1,145 +1,72 @@
-from __future__ import annotations         # ← これを一番上に追加
-from datetime import date                  # ← これも必須
-from hayami import kanshi_data                           # {1..60: {"kanshi": "甲子", "tensatsu": "子丑"}}
+# kanshi_calc.py
+from __future__ import annotations
+
+from datetime import date
 from risshun_data import risshun_dict
-# from day_kanshi_dict import kanshi_index_table           # 日：{年:{月:idx}} または {(年,月):idx}
-from month_kanshi_index_dict import month_kanshi_index_dict  # 月：同上（固定表）
+from hayami import kanshi_data                     # {1..60: {"kanshi": "...", "tensatsu": "..."}}
+from month_kanshi_index_dict import month_kanshi_index_dict  # {(year, month): index}
 
+# =========================================================
+# 共有ヘルパー
+# =========================================================
 
-# === ここを必ず用意：干支名をインデックスから引くヘルパー ===
 def get_kanshi_name(index: int | None) -> str | None:
+    """干支インデックス(1..60)から干支名を返す。Noneや未登録は None。"""
     if index is None:
         return None
-    data = kanshi_data.get(index)
+    data = kanshi_data.get(int(index))
     return data.get("kanshi") if data else None
 
-def get_month_kanshi_name_fixed(birth_date: date) -> str | None:
-    """
-    固定表 month_kanshi_index_dict を使うが、
-    月の選択だけ『節月（立春基準）』で行う。
-      - 立春前：前年の「12月節」
-      - 立春以後：その年の暦月をそのまま
-    """
-    y = birth_date.year
-    m = birth_date.month
 
-    risshun = risshun_dict.get(y)
-    if risshun and birth_date < risshun:
-        # 立春より前は前年の12月節を参照
-        y = y - 1
-        m = 12
-# ===========================================================
-
-# ===== 基本ユーティリティ =====
-
-def _adjust_base_year_by_risshun(d: datetime.date) -> int:
-    """立春前は前年を返す（年干支・月表参照の基準年）。"""
-    y = d.year
-    rs = risshun_dict.get(y)
-    return y if (not rs or d >= rs) else (y - 1)
-
-# ===== 年干支 =====
-
-def get_year_kanshi_index(d: datetime.date) -> int:
-    """立春基準の年干支インデックス（1..60）"""
-    y = _adjust_base_year_by_risshun(d)
-    return ((y - 1984) % 60) + 1
-
-def get_year_kanshi_name(index_1to60: int) -> str:
-    return kanshi_data[int(index_1to60)]["kanshi"]
-
-# ===== 月干支（固定表） =====
-
-def get_month_kanshi_index(d: datetime.date) -> int | None:
-    """
-    month_kanshi_index_dict から月干支Idxを取得。
-    まず (年, 月) のタプルキー、次に {年:{月:idx}} の順で参照（DBを壊さない最小差分）。
-    月は“暦月”で参照し、基準年は立春補正済みの年を使う。
-    """
-    by = _adjust_base_year_by_risshun(d)
-    m = d.month
-
-    # ① タプルキー優先
-    tkey = (by, m)
-    if tkey in month_kanshi_index_dict:
-        return int(month_kanshi_index_dict[tkey])
-
-    # ② ネスト辞書にフォールバック
-    try:
-        return int(month_kanshi_index_dict[by][m])
-    except Exception:
-        return None
-
-def get_month_kanshi_name(index_1to60: int | None) -> str:
-    if index_1to60 is None:
-        return "該当なし"
-    return kanshi_data[int(index_1to60)]["kanshi"]
-
-# ===== 日干支（その月の1日Idx＋日） =====
-
-def get_day_kanshi_index(d: datetime.date) -> int | None:
-    """
-    kanshi_index_table から “その月の1日インデックス” を取得し +日（60超は-60）。
-    まず {年:{月:idx}}、次に (年, 月) のタプルキーの順で参照（最小差分）。
-    """
-    by = _adjust_base_year_by_risshun(d)
-    m = d.month
-
-    base_idx = None
-    # ① ネスト辞書優先
-    try:
-        base_idx = int(kanshi_index_table[by][m])
-    except Exception:
-        # ② タプルキー
-        try:
-            base_idx = int(kanshi_index_table[(by, m)])
-        except Exception:
-            return None
-
-    idx = base_idx + d.day
-    while idx > 60:
-        idx -= 60
-    return idx
-
-def get_day_kanshi_name(index_1to60: int | None) -> str:
-    if index_1to60 is None:
-        return "該当なし"
-    return kanshi_data[int(index_1to60)]["kanshi"]
-
-
-# --- 追記：月干支（動的計算：立春前は前年12月節） ---
-def get_month_kanshi_index_dynamic(birth_date: date) -> int | None:
-    year = birth_date.year
-    month = birth_date.month
-    risshun = risshun_dict.get(year)
-
-    # 立春前は前年の12月節
-    key = (year - 1, 12) if (risshun is not None and birth_date < risshun) else (year, month)
-    return month_kanshi_index_dict.get(key)
-
-def get_month_kanshi_name_dynamic(birth_date: date) -> str:
-    """生年月日から月干支名を返す（動的計算版。立春前は前年12月節）。"""
-    index = get_month_kanshi_index_dynamic(birth_date)
-    if not index:
-        return "該当なし"
-    data = kanshi_data.get(index)
-    return data["kanshi"] if (data and "kanshi" in data) else "該当なし"
-# --- 追記ここまで ---
-
-def _month_lookup_with_risshun(birth_date: date) -> tuple[int, int]:
+def _month_lookup_with_risshun(d: date) -> tuple[int, int]:
     """節月（立春基準）で参照すべき (year, month) を返す。
        立春前は前年の12月節、それ以外はその年の暦月。"""
-    y, m = birth_date.year, birth_date.month
-    r = risshun_dict.get(y)
-    if r is not None and birth_date < r:
+    y, m = d.year, d.month
+    rs = risshun_dict.get(y)
+    if rs and d < rs:
         return (y - 1, 12)
     return (y, m)
 
+# =========================================================
+# 月干支（固定表 A 方式）
+# =========================================================
+
 def get_month_kanshi_index_fixed(birth_date: date) -> int | None:
-    """固定表 month_kanshi_index_dict を、節月基準で引く"""
+    """固定表 month_kanshi_index_dict を節月基準で引いて月干支インデックス(1..60)を返す。"""
     y, m = _month_lookup_with_risshun(birth_date)
     return month_kanshi_index_dict.get((y, m))
 
+
 def get_month_kanshi_name_fixed(birth_date: date) -> str | None:
+    """固定表＋立春補正で求めた月干支名を返す。該当なしは None。"""
     idx = get_month_kanshi_index_fixed(birth_date)
     return get_kanshi_name(idx)
+
+# =========================================================
+# 日干支（表示用の干支名：甲子アンカー差分で算出）
+#   ※ 天中殺用の「月値 + 日」計算はアプリ側の既存処理のまま利用
+# =========================================================
+
+# あなたの指定する甲子アンカー日
+_KOUSHI_ANCHORS: tuple[date, ...] = (
+    date(1900, 2, 20),   # 甲子
+    date(2025, 12, 21),  # 甲子
+    date(2026, 12, 16),  # 甲子
+)
+
+# 1始まりの干支名リスト（アプリと同じ順序）
+_KANSHI = [
+    "", "甲子","乙丑","丙寅","丁卯","戊辰","己巳","庚午","辛未","壬申","癸酉",
+    "甲戌","乙亥","丙子","丁丑","戊寅","己卯","庚辰","辛巳","壬午","癸未",
+    "甲申","乙酉","丙戌","丁亥","戊子","己丑","庚寅","辛卯","壬辰","癸巳",
+    "甲午","乙未","丙申","丁酉","戊戌","己亥","庚子","辛丑","壬寅","癸卯",
+    "甲辰","乙巳","丙午","丁未","戊申","己酉","庚戌","辛亥","壬子","癸丑",
+    "甲寅","乙卯","丙辰","丁巳","戊午","己未","庚申","辛酉","壬戌","癸亥"
+]
+
+def get_day_kanshi_name_by_anchor(d: date) -> str:
+    """甲子アンカー日の差分（60日周期）で日干支名（1始まり）を返す。"""
+    anchor = min(_KOUSHI_ANCHORS, key=lambda a: abs((d - a).days))
+    diff = (d - anchor).days % 60
+    idx = 60 if diff == 0 else diff
+    return _KANSHI[idx]
