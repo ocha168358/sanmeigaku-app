@@ -107,15 +107,11 @@ def get_month_kanshi_index_dynamic(birth_date: date) -> int | None:
     return month_kanshi_index_dict.get(key)
 
 
-def get_month_kanshi_name_dynamic(birth_date: date) -> str:
-    """
-    上のインデックス関数を使って月干支「名称」を返す。
-    該当しない場合は '該当なし' を返す。
-    """
-    idx = get_month_kanshi_index_dynamic(birth_date)
-    if not idx:
-        return "該当なし"
-    name = get_kanshi_name(idx)
-    return name if name else "該当なし"
+def get_month_kanshi_name_dynamic(birth_date: date) -> str | None:
+    """生年月日から月干支名を返す（動的計算版）"""
+    index = get_month_kanshi_index_dynamic(birth_date)
+    if index is None:
+        return None
+    return get_kanshi_name(index)  # ← 修正済み
 
 # ========= 追記ここまで =========

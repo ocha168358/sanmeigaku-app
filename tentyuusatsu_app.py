@@ -98,7 +98,7 @@ def main():
 
     birth_date = st.date_input(
         "生年月日を入力してください（範囲：1900年～2033年）",
-        value=datetime(1972, 11, 20),
+        value=datetime(2000, 1, 1),
         min_value=datetime(1900, 1, 1),
         max_value=datetime(2033, 12, 31),
     )
