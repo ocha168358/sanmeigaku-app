@@ -107,3 +107,10 @@ def get_month_kanshi_name_dynamic(birth_date: date) -> str:
     data = kanshi_data.get(index)
     return data["kanshi"] if (data and "kanshi" in data) else "該当なし"
 # --- 追記ここまで ---
+
+def get_month_kanshi_name_fixed(birth_date: date) -> str | None:
+    """固定表（month_kanshi_index_dict）を使って月干支名を取得する"""
+    index = month_kanshi_index_dict.get((birth_date.year, birth_date.month))
+    if index is None:
+        return None
+    return get_kanshi_name(index)
