@@ -115,7 +115,7 @@ def main():
 
         # 表示順：年干支 → 月干支 → 日干支（インデックス付き）
         st.markdown(f"### 年干支（立春基準）：{year_kanshi}")
-        st.markdown(f"### 月干支（立春基準・固定表）：{month_kanshi}")
+        st.markdown(f"### 月干支（立春基準）：{month_kanshi}")
         st.markdown(f"### 日干支＆天中殺用数値：{day_kanshi}（インデックス: {day_idx}）")
 
         if day_idx is None:
