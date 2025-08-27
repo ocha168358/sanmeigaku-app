@@ -2,8 +2,14 @@ import streamlit as st
 from datetime import datetime
 from risshun_data import risshun_dict
 from day_kanshi_dict import kanshi_index_table
-from month_kanshi_index_dict import month_kanshi_index_dict
 from tenchusatsu_messages import tentyuusatsu_messages
+from month_kanshi_index_dict import month_kanshi_index_dict
+# from month_kanshi_index_dict import month_kanshi_index_dict
+# from kanshi_calc import get_month_kanshi_name_dynamic
+from kanshi_calc import get_month_kanshi_name_fixed
+from kanshi_calc import get_month_kanshi_name_fixed, get_day_kanshi_name_by_anchor
+
+
 
 # 1番目を空欄にして、干支の「1〜60番」と index を合わせる
 kanshi_list = [
@@ -49,31 +55,17 @@ def get_month_kanshi_from_table(birth_date):
         return "該当なし", None
 
 def get_day_kanshi_from_table(birth_date):
-    """
-    日干支：まず {年:{月:idx}} のネスト辞書を参照、
-    見つからなければ (年, 月) タプルキーをフォールバック。
-    取得した“その月の1日インデックス”に＋日（60超は折返し）。
-    """
-    base_year = birth_date.year
-    rs = risshun_dict.get(base_year)
-    if rs and birth_date < rs:
-        base_year -= 1
-
-    # ① ネスト辞書優先
-    base_index = None
+    # 日干支は「暦月ベース（1〜12）」で計算する。立春判定は使わない。
+    year = birth_date.year
+    month = birth_date.month
     try:
-        base_index = int(kanshi_index_table[base_year][birth_date.month])
-    except Exception:
-        # ② タプルキーにフォールバック
-        try:
-            base_index = int(kanshi_index_table[(base_year, birth_date.month)])
-        except Exception:
-            return "該当なし", None
-
-    idx = base_index + birth_date.day
-    while idx > 60:
-        idx -= 60
-    return kanshi_list[idx], idx
+        base_index = kanshi_index_table[year][month]  # 月初の干支index - 1（固定表）
+        day_index = base_index + birth_date.day
+        if day_index > 60:
+            day_index -= 60
+        return kanshi_list[day_index], day_index
+    except (KeyError, TypeError):
+        return "該当なし", None
 
 def get_tenchusatsu_from_day_index(index):
     if index is None:
@@ -97,20 +89,41 @@ def main():
 
     birth_date = st.date_input(
         "生年月日を入力してください（範囲：1900年～2033年）",
-        value=datetime(1972, 11, 20),
+        value=datetime(2000, 1, 1),
         min_value=datetime(1900, 1, 1),
         max_value=datetime(2033, 12, 31),
     )
 
     if st.button("診断する"):
+        # 年干支（そのまま）
         year_kanshi = get_year_kanshi_from_risshun(birth_date)
-        month_kanshi, _ = get_month_kanshi_from_table(birth_date)
-        day_kanshi, day_idx = get_day_kanshi_from_table(birth_date)
 
-        # 表示順：年干支 → 月干支 → 日干支（インデックス付き）
+        # 節月（立春基準）で参照する (y, m)
+        r = risshun_dict.get(birth_date.year)
+        if r and birth_date < r:
+            y, m = birth_date.year - 1, 12
+        else:
+            y, m = birth_date.year, birth_date.month
+
+        # 月干支のインデックス（1..60, 月そのものの干支）
+        month_start = month_kanshi_index_dict.get((y, m))
+        month_kanshi = get_kanshi_name(month_start) if month_start else "該当なし"
+
+        # 日干支（表示用）は甲子アンカー差分で算出（kanshi_calc.py の関数）
+        from kanshi_calc import get_day_kanshi_name_by_anchor
+        day_kanshi = get_day_kanshi_name_by_anchor(birth_date)
+
+        # 天中殺用インデックス（=「月値+日」方式。月値は“月干支-1”）
+        day_idx = None
+        if month_start:
+            base = (month_start - 1) % 60  # 0..59（『0日目』相当）
+            day_idx = (base + birth_date.day) % 60
+            if day_idx == 0:
+                day_idx = 60
+
         st.markdown(f"### 年干支（立春基準）：{year_kanshi}")
-        st.markdown(f"### 月干支（立春基準・固定表）：{month_kanshi}")
-        st.markdown(f"### 日干支＆天中殺用数値：{day_kanshi}（インデックス: {day_idx}）")
+        st.markdown(f"### 月干支（立春基準）：{month_kanshi}")
+        st.markdown(f"### 日干支＆天中殺用数値：{day_kanshi_name}（インデックス: {tensatsu_index}）")
 
         if day_idx is None:
             st.warning("この月の干支データが未登録のため、天中殺の診断ができません。")
