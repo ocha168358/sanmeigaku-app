@@ -120,6 +120,17 @@ def _anchor_idx(y: int, m: int):
     except Exception:
         return None
 
+def kanshi_name(idx):
+    try:
+        i = int(idx)
+    except Exception:
+        return "該当なし"
+    for name in ("kanshi_list", "KANSHI", "kanshi_data"):
+        arr = globals().get(name)
+        if isinstance(arr, list) and 1 <= i < len(arr):
+            return arr[i]
+    return "該当なし"
+
 def get_day_kanshi(birth_date):
     """固定表のルール：アンカー（その月1日の値）＋“日”で求める。"""
     y, m, d = birth_date.year, birth_date.month, birth_date.day
