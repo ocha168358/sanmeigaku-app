@@ -1,9 +1,10 @@
 from __future__ import annotations         # ← これを一番上に追加
 from datetime import date                  # ← これも必須
+from hayami import kanshi_data                           # {1..60: {"kanshi": "甲子", "tensatsu": "子丑"}}
 from risshun_data import risshun_dict
 # from day_kanshi_dict import kanshi_index_table           # 日：{年:{月:idx}} または {(年,月):idx}
 from month_kanshi_index_dict import month_kanshi_index_dict  # 月：同上（固定表）
-from hayami import kanshi_data                           # {1..60: {"kanshi": "甲子", "tensatsu": "子丑"}}
+
 
 # === ここを必ず用意：干支名をインデックスから引くヘルパー ===
 def get_kanshi_name(index: int) -> str | None:
@@ -99,9 +100,10 @@ def get_month_kanshi_index_dynamic(birth_date: date) -> int | None:
     return month_kanshi_index_dict.get(key)
 
 def get_month_kanshi_name_dynamic(birth_date: date) -> str:
+    """生年月日から月干支名を返す（動的計算版。立春前は前年12月節）。"""
     index = get_month_kanshi_index_dynamic(birth_date)
     if not index:
         return "該当なし"
-    name = get_kanshi_name(index)   # ← ここで上のヘルパーを使用
-    return name if name else "該当なし"
+    data = kanshi_data.get(index)
+    return data["kanshi"] if (data and "kanshi" in data) else "該当なし"
 # --- 追記ここまで ---
