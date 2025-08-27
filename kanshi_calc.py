@@ -1,12 +1,15 @@
 from __future__ import annotations         # ← これを一番上に追加
 from datetime import date                  # ← これも必須
-import datetime
 from risshun_data import risshun_dict
-from day_kanshi_dict import kanshi_index_table           # 日：{年:{月:idx}} または {(年,月):idx}
+# from day_kanshi_dict import kanshi_index_table           # 日：{年:{月:idx}} または {(年,月):idx}
 from month_kanshi_index_dict import month_kanshi_index_dict  # 月：同上（固定表）
 from hayami import kanshi_data                           # {1..60: {"kanshi": "甲子", "tensatsu": "子丑"}}
 
-
+# === ここを必ず用意：干支名をインデックスから引くヘルパー ===
+def get_kanshi_name(index: int) -> str | None:
+    data = kanshi_data.get(index)
+    return data["kanshi"] if data else None
+# ===========================================================
 
 # ===== 基本ユーティリティ =====
 
@@ -84,34 +87,21 @@ def get_day_kanshi_name(index_1to60: int | None) -> str:
         return "該当なし"
     return kanshi_data[int(index_1to60)]["kanshi"]
 
-# ========= ここから追記：月干支（動的計算：立春をまたぐ場合は前年の12月節） =========
 
+# --- 追記：月干支（動的計算：立春前は前年12月節） ---
 def get_month_kanshi_index_dynamic(birth_date: date) -> int | None:
-    """
-    月干支インデックス（1〜60）を動的に返す。
-    - 立春前: 前年の「12月節」を使う → (year-1, 12)
-    - 立春以降: その年の暦月 → (year, month)
-    参照データは month_kanshi_index_dict（固定表）を使用するが、
-    年跨ぎだけを動的に処理するため安全。
-    """
     year = birth_date.year
     month = birth_date.month
     risshun = risshun_dict.get(year)
 
-    # 立春前は前年の12月節扱い
-    if risshun is not None and birth_date < risshun:
-        key = (year - 1, 12)
-    else:
-        key = (year, month)
-
+    # 立春前は前年の12月節
+    key = (year - 1, 12) if (risshun is not None and birth_date < risshun) else (year, month)
     return month_kanshi_index_dict.get(key)
 
-
-def get_month_kanshi_name_dynamic(birth_date: date) -> str | None:
-    """生年月日から月干支名を返す（動的計算版）"""
+def get_month_kanshi_name_dynamic(birth_date: date) -> str:
     index = get_month_kanshi_index_dynamic(birth_date)
-    if index is None:
-        return None
-    return get_kanshi_name(index)  # ← 修正済み
-
-# ========= 追記ここまで =========
+    if not index:
+        return "該当なし"
+    name = get_kanshi_name(index)   # ← ここで上のヘルパーを使用
+    return name if name else "該当なし"
+# --- 追記ここまで ---
