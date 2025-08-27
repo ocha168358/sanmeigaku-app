@@ -1,8 +1,12 @@
+from __future__ import annotations         # ← これを一番上に追加
+from datetime import date                  # ← これも必須
 import datetime
 from risshun_data import risshun_dict
 from day_kanshi_dict import kanshi_index_table           # 日：{年:{月:idx}} または {(年,月):idx}
 from month_kanshi_index_dict import month_kanshi_index_dict  # 月：同上（固定表）
 from hayami import kanshi_data                           # {1..60: {"kanshi": "甲子", "tensatsu": "子丑"}}
+
+
 
 # ===== 基本ユーティリティ =====
 
