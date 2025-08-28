@@ -204,6 +204,33 @@ def _day_anchor_from_table(year: int, month: int):
 def _prev_month(y: int, m: int):
     return (y - 1, 12) if m == 1 else (y, m - 1)
 
+def _read_month_idx_by_key(y: int, m: int):
+    """month_kanshi_index_dict から (y,m) の index を 1..60 で取得。0→60, 文字列→int。"""
+    v = month_kanshi_index_dict.get((y, m))
+    if v is None:
+        try:
+            v = month_kanshi_index_dict[y][m]  # {年:{月:idx}} フォールバック
+        except Exception:
+            return None
+    try:
+        v = int(v)
+    except Exception:
+        return None
+    if v == 0:
+        v = 60
+    return _wrap_1_60(v)
+
+def get_prev_calendar_month_kanshi(birth_date):
+    """
+    暦月ベースの『前月』の月干支（注意表示用）。
+    例）8/3 → (年, 7) をそのまま引く。1月は (年-1, 12)。
+    """
+    d = _as_date(birth_date)
+    y, m = (d.year - 1, 12) if d.month == 1 else (d.year, d.month - 1)
+    idx = _read_month_idx_by_key(y, m)
+    return (kanshi_name(idx), idx, {"key": (y, m)}) if idx else ("該当なし", None, {"key": (y, m)})
+
+
 # ================= 日干支：1900-02-20(甲子)アンカーの60日周期 =================
 
 def _jdn_ymd(y: int, m: int, d: int) -> int:
@@ -265,6 +292,8 @@ if st.button("診断する"):
 
     st.markdown(f"### 年干支（立春基準）: {year_k}")
     st.markdown(f"### 月干支（固定表A方式）: {month_k}（index: {month_idx if month_idx else '・'}）")
+    prev_m_name, prev_m_idx, prev_m_dbg = get_prev_calendar_month_kanshi(birth_date)
+    st.caption(f"（月初の参考）前月の月干支: {prev_m_name}（index: {prev_m_idx if prev_m_idx else '・'}）")
     # ← この直後に追加
     st.info(
         "※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
