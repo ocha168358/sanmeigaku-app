@@ -41,8 +41,11 @@ def show_tenchusatsu_graph(ts_group: str):
     if not url:
         st.caption("（グラフ画像のURLが未設定です）")
         return
-    st.image(url, caption=f"{ts_group}天中殺の運気グラフ（バイオリズム）", use_column_width=True)
-    st.caption("※ 一番低迷している2ヶ月が天中殺期間となります。\n　 年単位で見たい方は「5月＝2025年」と置き換えてください（12年周期）")
+    # ① 非推奨の use_column_width → use_container_width に変更
+    st.image(url, caption=f"{ts_group}天中殺の運気グラフ（バイオリズム）", use_container_width=True)
+    # ② Markdown の強制改行（行末に半角スペース2つ + \n）
+    st.markdown("※ 一番低迷している2ヶ月が天中殺期間となります。  \n　 年単位で見たい方は「5月＝2025年」と置き換えてください（12年周期）")
+
 
 
 # ---------------- 干支テーブル（1..60） ----------------
