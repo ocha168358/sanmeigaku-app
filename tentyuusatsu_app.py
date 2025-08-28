@@ -372,3 +372,6 @@ if st.button("診断する"):
             pass
     else:
         st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
+
+    st.markdown(" ")
+    st.markdown(" ")
