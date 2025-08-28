@@ -70,36 +70,111 @@ def get_year_kanshi(birth_date) -> str:
     idx = _wrap_1_60((y - 1984) % 60 + 1)  # 1984=甲子
     return kanshi_list[idx]
 
-# ---------------- 月干支：固定辞書A方式 ----------------
-def _setsuge_key(birth_date):
-    """立春 前→(年-1,12)／以後→(年,月) を返す。"""
-    d = _as_date(birth_date)
-    y, m = d.year, d.month
-    rs = risshun_dict.get(y)
-    return (y - 1, 12) if (rs and d < rs) else (y, m)
-
-def get_month_kanshi_index_fixed(birth_date):
-    """month_kanshi_index_dict からそのまま取り出す（計算しない）。"""
-    y, m = _setsuge_key(birth_date)
-    v = month_kanshi_index_dict.get((y, m))
-    if v is None:
-        # 許可する唯一のフォールバック：{年:{月:idx}}
-        try:
-            v = month_kanshi_index_dict[y][m]
-        except Exception:
-            return None
+# --- 月干支テーブル読み取り（idx/start_day/prev_idx を柔軟に取得） ---
+def _mk_int(v):
     try:
-        v = int(v)
+        i = int(v)
+        return i
     except Exception:
         return None
-    if v == 0:
-        v = 60
-    return _wrap_1_60(v)
 
+def _read_month_entry(y: int, m: int):
+    """
+    month_kanshi_index_dict の (y,m) を取得。
+    返り値: (this_idx, start_day, prev_idx)
+    受理する形式:
+      - int/str               -> this_idx
+      - dict                  -> keys: idx/index/value/this, start_day/start/boundary, prev_idx/prev/before
+      - キー形: (y,m) / {y:{m:...}} / "YYYY-MM" / "YYYYMM"
+    """
+    src = None
+    if (y, m) in month_kanshi_index_dict:
+        src = month_kanshi_index_dict[(y, m)]
+    elif isinstance(month_kanshi_index_dict.get(y), dict) and m in month_kanshi_index_dict[y]:
+        src = month_kanshi_index_dict[y][m]
+    else:
+        src = (month_kanshi_index_dict.get(f"{y}-{m:02d}")
+               or month_kanshi_index_dict.get(f"{y}{m:02d}"))
+
+    if src is None:
+        return None, None, None
+
+    # 単なる数値/文字列
+    if not isinstance(src, dict):
+        idx = _mk_int(src)
+        return (idx if idx else None), None, None
+
+    # dict 形式
+    idx = _mk_int(src.get("idx") or src.get("index") or src.get("value") or src.get("this"))
+    sd  = src.get("start_day") or src.get("start") or src.get("boundary")
+    start_day = _mk_int(sd)
+    prev_idx  = _mk_int(src.get("prev_idx") or src.get("prev") or src.get("before"))
+
+    return (idx if idx else None), start_day, (prev_idx if prev_idx else None)
+
+# 前月キー
+def _prev_y_m(y: int, m: int):
+    return (y - 1, 12) if m == 1 else (y, m - 1)
+
+# ---------------- 月干支：固定辞書A方式 ----------------
 def get_month_kanshi(birth_date):
-    """UIがこの名前で呼ぶのでラップして干支名も返す。"""
-    idx = get_month_kanshi_index_fixed(birth_date)
-    return (kanshi_name(idx), idx, {"key": _setsuge_key(birth_date)}) if idx else ("該当なし", None, {"key": None})
+    """
+    二十四節気：各月の start_day（節入り）で切り替え。
+    - 当月 (y,m) のエントリに start_day があれば、
+        d >= start_day で this_idx、d < start_day で prev_idx（無ければ前月idx）。
+    - start_day が無い月は、
+        2月のみ立春（risshun_dict）で切替、それ以外は this_idx をそのまま採用。
+    - idx/prev_idx は 0→60、文字列→int に丸める。
+    """
+    d = _as_date(birth_date)
+    y, m, day = d.year, d.month, d.day
+
+    this_idx, start_day, prev_idx = _read_month_entry(y, m)
+
+    # 1) start_day が定義されている月（推奨データ）
+    if start_day is not None:
+        if day >= start_day:
+            if this_idx:
+                idx = ((this_idx - 1) % 60) + 1
+                return _kanshi_name(idx), idx, {"hit": (y, m), "rule": f"start_day≥{start_day}"}
+        else:
+            if prev_idx:
+                idx = ((prev_idx - 1) % 60) + 1
+                return _kanshi_name(idx), idx, {"hit": (y, m), "rule": f"before start_day({start_day})"}
+            # prev_idx 未設定 → 前月の this_idx を参照
+            py, pm = _prev_y_m(y, m)
+            p_idx, _, _ = _read_month_entry(py, pm)
+            if p_idx:
+                idx = ((p_idx - 1) % 60) + 1
+                return _kanshi_name(idx), idx, {"hit": (py, pm), "rule": "fallback prev month"}
+
+            # さらに無ければ this_idx を保険採用
+            if this_idx:
+                idx = ((this_idx - 1) % 60) + 1
+                return _kanshi_name(idx), idx, {"hit": (y, m), "rule": "fallback this_idx"}
+
+    # 2) start_day が無い月
+    if this_idx:
+        if m == 2:
+            # 2月だけは立春基準で前後を分ける
+            rs = risshun_dict.get(y)
+            if rs and d < rs:
+                py, pm = (y - 1, 12)
+                p_idx, _, _ = _read_month_entry(py, pm)
+                if p_idx:
+                    idx = ((p_idx - 1) % 60) + 1
+                    return _kanshi_name(idx), idx, {"hit": (py, pm), "rule": "risshun prev-month"}
+        idx = ((this_idx - 1) % 60) + 1
+        return _kanshi_name(idx), idx, {"hit": (y, m), "rule": "no start_day"}
+
+    # 3) データ未整備 → day_kanshi_dict で前月推定の保険（任意）
+    #    前月のエントリがあればその idx を返す（ここで day_kanshi_dict を使う必然は薄いが温存）
+    py, pm = _prev_y_m(y, m)
+    p_idx, _, _ = _read_month_entry(py, pm)
+    if p_idx:
+        idx = ((p_idx - 1) % 60) + 1
+        return _kanshi_name(idx), idx, {"hit": (py, pm), "rule": "no data: use prev"}
+    return "該当なし", None, {"hit": None, "rule": "no data"}
 
 # ---------------- 日干支：固定表A方式 ----------------
 def _day_anchor_from_table(year: int, month: int):
@@ -190,6 +265,9 @@ if st.button("診断する"):
 
     st.markdown(f"### 年干支（立春基準）: {year_k}")
     st.markdown(f"### 月干支（固定表A方式）: {month_k}（index: {month_idx if month_idx else '・'}）")
+    # ← この直後に追加
+    st.info(
+        "※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
     st.markdown(f"### 日干支＆天中殺用数値: {day_k}（インデックス: {day_idx if day_idx else '・'}）")
 
     with st.expander("デバッグ情報"):
