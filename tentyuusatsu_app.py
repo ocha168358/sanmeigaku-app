@@ -303,8 +303,11 @@ if st.button("診断する"):
         "※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
     st.markdown(f"### 日干支＆天中殺用数値: {day_k}（インデックス: {day_idx if day_idx else '・'}）")
 
-    with st.expander("デバッグ情報"):
-        st.write({"month": month_dbg, "day": day_dbg})
+ #   with st.expander("デバッグ情報"):
+ #       st.write({"month": month_dbg, "day": day_dbg})
+
+    st.markdown(" ")  # 空行（改行代わり）
+    st.markdown(" ")  # 空行（改行代わり）
 
     # 天中殺
     if day_idx:
