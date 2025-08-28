@@ -319,31 +319,39 @@ birth_date = st.date_input(
 )
 
 if st.button("診断する"):
-    # 年・月・日
-    year_k = get_year_kanshi(birth_date)
-    month_k, month_idx, month_dbg = get_month_kanshi(birth_date)
-    day_k, day_idx, day_dbg = get_day_kanshi(birth_date)
+    # 先に初期化（未定義防止）
+    year_k = month_k = day_k = None
+    month_idx = day_idx = None
+    month_dbg = day_dbg = {}
 
-    st.markdown(f"### 年干支（立春基準）: {year_k}")
-    st.markdown(f"### 月干支（固定表A方式）: {month_k}（index: {month_idx if month_idx else '・'}）")
-    prev_m_name, prev_m_idx, prev_m_dbg = get_prev_calendar_month_kanshi(birth_date)
-    if birth_date.day <= 7 or (birth_date.month == 2 and _as_date(birth_date) < risshun_dict.get(birth_date.year,
-                                                                                                 date(birth_date.year,
-                                                                                                      2, 4))):
+    try:
+        # 年・月・日
+        year_k = get_year_kanshi(birth_date)
+        month_k, month_idx, month_dbg = get_month_kanshi(birth_date)
+        day_k, day_idx, day_dbg = get_day_kanshi(birth_date)
+    except Exception as e:
+        st.error(f"計算中にエラーが発生しました: {e}")
+        # 続行（day_idx は None のまま）
+
+    # --- 表示 ---
+    if year_k is not None:
+        st.markdown(f"### 年干支（立春基準）: {year_k}")
+
+    st.markdown(f"### 月干支（固定表A方式）: {month_k if month_k else '・'}（index: {month_idx if month_idx else '・'}）")
+
+    # 月初の参考表示（あなたの条件のまま）
+    if birth_date.day <= 7 or (birth_date.month == 2 and _as_date(birth_date) < risshun_dict.get(birth_date.year, date(birth_date.year, 2, 4))):
         prev_m_name, prev_m_idx, prev_m_dbg = get_prev_calendar_month_kanshi(birth_date)
         st.caption(f"【参考】節入り前生まれの方の月干支: {prev_m_name}（index: {prev_m_idx if prev_m_idx else '・'}）")
-    # ← この直後に追加
-    st.info(
-        "※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
-    st.markdown(f"### 日干支＆天中殺用数値: {day_k}（インデックス: {day_idx if day_idx else '・'}）")
 
- #   with st.expander("デバッグ情報"):
- #       st.write({"month": month_dbg, "day": day_dbg})
+    st.info("※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
 
-    st.markdown(" ")  # 空行（改行代わり）
-    st.markdown(" ")  # 空行（改行代わり）
+    st.markdown(f"### 日干支＆天中殺用数値: {day_k if day_k else '・'}（インデックス: {day_idx if day_idx else '・'}）")
 
-    # 天中殺
+    st.markdown(" ")
+    st.markdown(" ")
+
+    # 天中殺（day_idx が取れているときだけ）
     if day_idx:
         ts_group = tenchusatsu_from_index(day_idx)
         st.markdown(f"### 天中殺: {ts_group}")
@@ -353,22 +361,11 @@ if st.button("診断する"):
                 st.markdown(f"- {line}")
         else:
             st.caption("該当メッセージなし")
+
+        # グラフ（設定していれば表示）
+        try:
+            show_tenchusatsu_graph(ts_group)
+        except Exception:
+            pass
     else:
         st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
-
-# 天中殺グラフ
-if day_idx:
-    ts_group = tenchusatsu_from_index(day_idx)
-    st.markdown(f"### 天中殺: {ts_group}")
-    msg = tentyuusatsu_messages.get(ts_group) if isinstance(tentyuusatsu_messages, dict) else None
-    if msg:
-        for line in msg:
-            st.markdown(f"- {line}")
-    else:
-        st.caption("該当メッセージなし")
-
-    # ← ここに追加
-    show_tenchusatsu_graph(ts_group)
-
-else:
-    st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
