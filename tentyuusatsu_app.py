@@ -365,6 +365,9 @@ if st.button("診断する"):
         else:
             st.caption("該当メッセージなし")
 
+            # 改行を2行追加（メッセージとグラフの間に余白）
+            st.markdown("<br><br>", unsafe_allow_html=True)
+
         # グラフ（設定していれば表示）
         try:
             show_tenchusatsu_graph(ts_group)
@@ -373,5 +376,3 @@ if st.button("診断する"):
     else:
         st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
 
-    st.markdown(" ")
-    st.markdown(" ")
