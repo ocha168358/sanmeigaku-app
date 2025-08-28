@@ -11,6 +11,40 @@ from month_kanshi_index_dict import month_kanshi_index_dict
 from day_kanshi_dict import kanshi_index_table
 from tenchusatsu_messages import tentyuusatsu_messages
 
+# ===== 天中殺グラフ（バイオリズム）画像の設定 =====
+# 1) GitHub の raw ベースURL（例）を設定
+#    例: https://raw.githubusercontent.com/<user>/<repo>/<branch>
+GRAPH_BASE_URL = "https://raw.githubusercontent.com/<ユーザー名>/<リポジトリ名>/main"
+
+# 2) あなたのファイル名（相対パス）のマッピング
+TENCHUSATSU_GRAPH_PATHS = {
+    "子丑": "sanmeigaku_images/neushi.png",
+    "寅卯": "sanmeigaku_images/torau.png",
+    "辰巳": "sanmeigaku_images/tatsumi.png",
+    "午未": "sanmeigaku_images/umahitsujiI.png",
+    "申酉": "sanmeigaku_images/sarutori.png",
+    "戌亥": "sanmeigaku_images/inui.png",
+}
+
+def _graph_url_for(ts_group: str) -> str | None:
+    """GitHub raw かローカルを解決して返す。GRAPH_BASE_URLが未設定ならそのままパスを返す。"""
+    rel = TENCHUSATSU_GRAPH_PATHS.get(ts_group)
+    if not rel:
+        return None
+    if GRAPH_BASE_URL and "<ユーザー名>" not in GRAPH_BASE_URL:
+        return f"{GRAPH_BASE_URL.rstrip('/')}/{rel.lstrip('/')}"
+    # ベース未設定なら相対パスのまま（ローカル同梱運用）
+    return rel
+
+def show_tenchusatsu_graph(ts_group: str):
+    url = _graph_url_for(ts_group)
+    if not url:
+        st.caption("（グラフ画像のURLが未設定です）")
+        return
+    st.image(url, caption=f"{ts_group}天中殺の運気グラフ（バイオリズム）", use_column_width=True)
+    st.caption("※ 一番低迷している2ヶ月が天中殺期間となります。\n　 年単位で見たい方は「5月＝2025年」と置き換えてください（12年周期）")
+
+
 # ---------------- 干支テーブル（1..60） ----------------
 # 配列名は既存互換のため kanshi_list も KANSHI も用意（同一オブジェクト）
 kanshi_list = [
@@ -321,3 +355,20 @@ if st.button("診断する"):
             st.caption("該当メッセージなし")
     else:
         st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
+
+# 天中殺グラフ
+if day_idx:
+    ts_group = tenchusatsu_from_index(day_idx)
+    st.markdown(f"### 天中殺: {ts_group}")
+    msg = tentyuusatsu_messages.get(ts_group) if isinstance(tentyuusatsu_messages, dict) else None
+    if msg:
+        for line in msg:
+            st.markdown(f"- {line}")
+    else:
+        st.caption("該当メッセージなし")
+
+    # ← ここに追加
+    show_tenchusatsu_graph(ts_group)
+
+else:
+    st.warning("この年の干支データは未登録のため、天中殺の診断ができません。")
