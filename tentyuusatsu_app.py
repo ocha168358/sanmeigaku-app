@@ -297,7 +297,7 @@ if st.button("診断する"):
                                                                                                  date(birth_date.year,
                                                                                                       2, 4))):
         prev_m_name, prev_m_idx, prev_m_dbg = get_prev_calendar_month_kanshi(birth_date)
-        st.caption(f"（月初の参考）前月の月干支: {prev_m_name}（index: {prev_m_idx if prev_m_idx else '・'}）")
+        st.caption(f"【参考】節入り前生まれの方の月干支: {prev_m_name}（index: {prev_m_idx if prev_m_idx else '・'}）")
     # ← この直後に追加
     st.info(
         "※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
