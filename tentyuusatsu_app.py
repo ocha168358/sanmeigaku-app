@@ -366,7 +366,8 @@ if st.button("診断する"):
             st.caption("該当メッセージなし")
 
             # 改行を2行追加（メッセージとグラフの間に余白）
-            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown(" ")
+            st.markdown(" ")
 
         # グラフ（設定していれば表示）
         try:
