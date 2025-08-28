@@ -293,7 +293,11 @@ if st.button("診断する"):
     st.markdown(f"### 年干支（立春基準）: {year_k}")
     st.markdown(f"### 月干支（固定表A方式）: {month_k}（index: {month_idx if month_idx else '・'}）")
     prev_m_name, prev_m_idx, prev_m_dbg = get_prev_calendar_month_kanshi(birth_date)
-    st.caption(f"（月初の参考）前月の月干支: {prev_m_name}（index: {prev_m_idx if prev_m_idx else '・'}）")
+    if birth_date.day <= 7 or (birth_date.month == 2 and _as_date(birth_date) < risshun_dict.get(birth_date.year,
+                                                                                                 date(birth_date.year,
+                                                                                                      2, 4))):
+        prev_m_name, prev_m_idx, prev_m_dbg = get_prev_calendar_month_kanshi(birth_date)
+        st.caption(f"（月初の参考）前月の月干支: {prev_m_name}（index: {prev_m_idx if prev_m_idx else '・'}）")
     # ← この直後に追加
     st.info(
         "※ 月干支は二十四節気（節入り）で切り替わります。月初（節入り前）生まれの方は結果が異なる場合があります。厳密な節入り日は各年の節入りカレンダーで確認してください → https://keisan.site/exec/system/1186111877")
